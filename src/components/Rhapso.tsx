@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, looks as looksApi, garments as garmentsApi, LookType, GarmentType } from '../lib/supabase';
+import { removeBackgroundFromImage, getGarmentTransform, calculateGarmentDimensions } from '../lib/imageProcessing';
 
 // ─── Global CSS ───────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
@@ -100,6 +101,9 @@ interface GarmentData {
   imageUrl: string;
   shopUrl: string;
   category: string;
+  cleanImageUrl?: string;
+  width?: number;
+  height?: number;
 }
 
 interface LookData {
@@ -157,37 +161,158 @@ function Mannequin({ skinHex = '#FDDBB4', bodyId = 'standard' }) {
   );
 }
 
-// ─── Mannequin Canvas ─────────────────────────────────────────────────────────
+// ─── Mannequin Canvas with Smart Garment Positioning ─────────────────────────
 function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: any) {
   const skinHex = SKINS.find((s) => s.id === mannequin.skinTone)?.hex || '#FDDBB4';
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 280, height: 500 });
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      setContainerSize({
+        width: canvasRef.current.offsetWidth,
+        height: canvasRef.current.offsetHeight,
+      });
+    }
+  }, []);
+
+  const renderGarment = (cat: string, g: GarmentData) => {
+    const zone = ZONES[cat as keyof typeof ZONES];
+    const zoneElement = canvasRef.current?.querySelector(`[data-zone="${cat}"]`);
+    if (!zoneElement) return null;
+
+    const zoneRect = zoneElement.getBoundingClientRect();
+    const containerRect = canvasRef.current?.getBoundingClientRect();
+    if (!containerRect) return null;
+
+    const zoneWidth = zoneRect.width;
+    const zoneHeight = zoneRect.height;
+
+    const transform = getGarmentTransform(cat, mannequin.bodyType, zoneWidth, zoneHeight);
+    const dims = calculateGarmentDimensions(
+      g.width || 200,
+      g.height || 200,
+      zoneWidth,
+      zoneHeight,
+      transform.scale,
+      transform.offsetY
+    );
+
+    return (
+      <div
+        key={`${cat}-garment`}
+        style={{
+          position: 'absolute',
+          left: `${zone.left}`,
+          top: `${zone.top}`,
+          width: zone.width,
+          height: zone.height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
+        onClick={() => onGarmentClick(g)}
+        title={`${g.name} - Clique para acessar`}
+      >
+        <img
+          src={g.cleanImageUrl || g.imageUrl}
+          alt={g.name}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.18))',
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
-    <div style={{ position: 'relative', width: '100%', userSelect: 'none' }}>
+    <div ref={canvasRef} style={{ position: 'relative', width: '100%', userSelect: 'none' }}>
       <Mannequin skinHex={skinHex} bodyId={mannequin.bodyType} />
+
       {CATS.filter((c) => c.id !== 'accessory').map((cat) => {
         const zone = ZONES[cat.id as keyof typeof ZONES];
         const g = garments[cat.id];
         return (
-          <div key={cat.id} style={{ position: 'absolute', ...zone, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            key={cat.id}
+            data-zone={cat.id}
+            style={{
+              position: 'absolute',
+              ...zone,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             {g ? (
-              <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={() => onGarmentClick(g)} title={`Comprar: ${g.name}`}>
-                <img src={g.imageUrl} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.18))' }} />
-              </div>
+              renderGarment(cat.id, g)
             ) : (
-              <button className="zone-btn" onClick={() => onZoneClick(cat.id)} style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.2)', border: '1px dashed rgba(180,165,140,0.5)', borderRadius: 4, color: C.muted, fontSize: 11, fontFamily: "'Jost',sans-serif", fontWeight: 300, letterSpacing: '0.1em', textTransform: 'uppercase', transition: 'background 0.2s' }}>
+              <button
+                className="zone-btn"
+                onClick={() => onZoneClick(cat.id)}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px dashed rgba(180,165,140,0.5)',
+                  borderRadius: 4,
+                  color: C.muted,
+                  fontSize: 11,
+                  fontFamily: "'Jost',sans-serif",
+                  fontWeight: 300,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  transition: 'background 0.2s',
+                }}
+              >
                 + {cat.label}
               </button>
             )}
           </div>
         );
       })}
+
       <div style={{ position: 'absolute', top: '26%', right: '-22%', width: '30%', height: '28%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {garments.accessory ? (
-          <div style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }} onClick={() => onGarmentClick(garments.accessory)} title="Comprar acessório">
-            <img src={garments.accessory.imageUrl} alt={garments.accessory.name} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.16))' }} />
+          <div
+            style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }}
+            onClick={() => onGarmentClick(garments.accessory)}
+            title={`${garments.accessory.name} - Clique para acessar`}
+          >
+            <img
+              src={garments.accessory.cleanImageUrl || garments.accessory.imageUrl}
+              alt={garments.accessory.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.16))',
+              }}
+            />
           </div>
         ) : (
-          <button className="zone-btn" onClick={() => onZoneClick('accessory')} style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.2)', border: '1px dashed rgba(180,165,140,0.5)', borderRadius: 4, color: C.muted, fontSize: 10, fontFamily: "'Jost',sans-serif", fontWeight: 300, letterSpacing: '0.08em', textTransform: 'uppercase', transition: 'background 0.2s' }}>
+          <button
+            className="zone-btn"
+            onClick={() => onZoneClick('accessory')}
+            style={{
+              width: '100%',
+              height: '100%',
+              background: 'rgba(255,255,255,0.2)',
+              border: '1px dashed rgba(180,165,140,0.5)',
+              borderRadius: 4,
+              color: C.muted,
+              fontSize: 10,
+              fontFamily: "'Jost',sans-serif",
+              fontWeight: 300,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              transition: 'background 0.2s',
+            }}
+          >
             + Acessório
           </button>
         )}
@@ -402,7 +527,7 @@ function EditorScreen({ lookName, onNameChange, mannequin, garments, onBack, onS
                 {g && (
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div style={{ width: 48, height: 48, flexShrink: 0, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      <img src={g.imageUrl} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={g.cleanImageUrl || g.imageUrl} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 400, color: C.text, letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
@@ -438,6 +563,7 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
   const [shopUrl, setShopUrl] = useState('');
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -458,9 +584,43 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
     setPreview(url || null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!imageUrl) return;
-    onAdd({ id: uid(), name: name || cat?.label, imageUrl, shopUrl, category });
+    setProcessing(true);
+    try {
+      const cleanImageUrl = await removeBackgroundFromImage(imageUrl);
+      const img = new Image();
+      img.onload = () => {
+        onAdd({
+          id: uid(),
+          name: name || cat?.label,
+          imageUrl,
+          cleanImageUrl,
+          shopUrl,
+          category,
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
+        setProcessing(false);
+      };
+      img.onerror = () => {
+        onAdd({
+          id: uid(),
+          name: name || cat?.label,
+          imageUrl,
+          cleanImageUrl,
+          shopUrl,
+          category,
+          width: 200,
+          height: 200,
+        });
+        setProcessing(false);
+      };
+      img.src = cleanImageUrl;
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setProcessing(false);
+    }
   };
 
   return (
@@ -493,7 +653,7 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
         </div>
         {mode === 'url' ? (
           <FieldGroup label="URL da imagem">
-            <TextInput placeholder="https://exemplo.com/imagem.jpg" value={imageUrl} onChange={(v) => handleUrlChange(v)} />
+            <TextInput placeholder="https://exemplo.com/imagem.png" value={imageUrl} onChange={(v) => handleUrlChange(v)} />
           </FieldGroup>
         ) : (
           <FieldGroup label="Arquivo de imagem">
@@ -534,21 +694,21 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!imageUrl}
+            disabled={!imageUrl || processing}
             style={{
               flex: 2,
               padding: '12px',
-              background: imageUrl ? C.text : C.border,
+              background: imageUrl && !processing ? C.text : C.border,
               color: C.white,
               fontSize: 10,
               fontWeight: 400,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              cursor: imageUrl ? 'pointer' : 'not-allowed',
+              cursor: imageUrl && !processing ? 'pointer' : 'not-allowed',
               transition: 'background 0.2s',
             }}
           >
-            Adicionar ao Look
+            {processing ? 'Processando…' : 'Adicionar ao Look'}
           </button>
         </div>
       </div>
