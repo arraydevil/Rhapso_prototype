@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase, looks as looksApi, garments as garmentsApi, LookType, GarmentType } from '../lib/supabase';
 import { removeBackgroundFromImage, getGarmentTransform, calculateGarmentDimensions } from '../lib/imageProcessing';
 
-// ─── Global CSS ───────────────────────────────────────────────────────────────
+// ─── Global CSS ─────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Jost', sans-serif; background: #F6F1EA; }
@@ -35,9 +35,10 @@ const GLOBAL_CSS = `
   .garment-row:hover .remove-btn { opacity: 1; }
   .skin-dot:hover { transform: scale(1.15); }
   .skin-dot { transition: transform 0.2s; }
+  .garment-img { transition: all 0.3s ease-out; }
 `;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────────────────
 const C = {
   bg: '#F6F1EA',
   white: '#FFFFFF',
@@ -79,7 +80,7 @@ const ZONES = {
   shoes: { top: '78%', left: '14%', width: '72%', height: '20%' },
 };
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
+// ─── Utilities ─────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const darkenHex = (hex: string, amt: number) => {
@@ -115,7 +116,7 @@ interface LookData {
   createdAt: string;
 }
 
-// ─── Mannequin SVG ────────────────────────────────────────────────────────────
+// ─── Mannequin SVG ────────────────────────────────────────────────────────
 function Mannequin({ skinHex = '#FDDBB4', bodyId = 'standard' }) {
   const shade = darkenHex(skinHex, 25);
   const deep = darkenHex(skinHex, 45);
@@ -195,7 +196,8 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
       zoneWidth,
       zoneHeight,
       transform.scale,
-      transform.offsetY
+      transform.offsetY,
+      transform.offsetX
     );
 
     return (
@@ -211,6 +213,7 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
+          overflow: 'hidden',
         }}
         onClick={() => onGarmentClick(g)}
         title={`${g.name} - Clique para acessar`}
@@ -218,11 +221,16 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
         <img
           src={g.cleanImageUrl || g.imageUrl}
           alt={g.name}
+          className="garment-img"
           style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
+            width: `${dims.width}px`,
+            height: `${dims.height}px`,
             objectFit: 'contain',
             filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.18))',
+            transform: `translate(calc(-50% + ${dims.x}px), calc(-50% + ${dims.y}px))`,
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
           }}
         />
       </div>
@@ -246,6 +254,7 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              overflow: 'hidden',
             }}
           >
             {g ? (
@@ -276,7 +285,7 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
         );
       })}
 
-      <div style={{ position: 'absolute', top: '26%', right: '-22%', width: '30%', height: '28%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', top: '26%', right: '-22%', width: '30%', height: '28%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         {garments.accessory ? (
           <div
             style={{ position: 'relative', width: '100%', height: '100%', cursor: 'pointer' }}
@@ -286,6 +295,7 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
             <img
               src={garments.accessory.cleanImageUrl || garments.accessory.imageUrl}
               alt={garments.accessory.name}
+              className="garment-img"
               style={{
                 width: '100%',
                 height: '100%',
@@ -321,7 +331,7 @@ function MannequinCanvas({ mannequin, garments, onZoneClick, onGarmentClick }: a
   );
 }
 
-// ─── Home Screen ──────────────────────────────────────────────────────────────
+// ─── Home Screen ────────────────────────────────────────────────────────────
 function HomeScreen({ looks, onNew, onOpen, onDelete }: any) {
   return (
     <div className="fadeIn" style={{ minHeight: '100vh', background: C.bg }}>
@@ -330,7 +340,7 @@ function HomeScreen({ looks, onNew, onOpen, onDelete }: any) {
           <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 30, fontWeight: 300, letterSpacing: '0.2em', color: C.text }}>RHAPSO</div>
           <div style={{ fontSize: 10, fontWeight: 300, letterSpacing: '0.25em', color: C.muted, textTransform: 'uppercase', marginTop: 2 }}>Virtual Wardrobe</div>
         </div>
-        <button className="pill-btn" onClick={onNew} style={{ padding: '10px 28px', background: C.text, color: C.white, fontSize: 11, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', border: `1px solid ${C.text}`, transition: 'all 0.25s' }}>
+        <button className="pill-btn" onClick={onNew} style={{ padding: '10px 28px', background: C.text, color: C.white, fontSize: 11, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
           + Novo Look
         </button>
       </header>
@@ -365,7 +375,7 @@ function EmptyState({ onNew }: any) {
       <p style={{ fontSize: 13, color: C.muted, fontWeight: 300, marginTop: 12, letterSpacing: '0.05em', lineHeight: 1.7 }}>
         Crie seu primeiro look e comece a montar<br />combinações únicas com seu manequim virtual.
       </p>
-      <button className="pill-btn" onClick={onNew} style={{ marginTop: 36, padding: '12px 36px', background: C.text, color: C.white, fontSize: 11, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase', border: `1px solid ${C.text}`, transition: 'all 0.25s' }}>
+      <button className="pill-btn" onClick={onNew} style={{ marginTop: 36, padding: '12px 36px', background: C.text, color: C.white, fontSize: 11, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
         Criar Primeiro Look
       </button>
     </div>
@@ -377,13 +387,13 @@ function LookCard({ look, onOpen, onDelete, delay }: any) {
   const garmentCount = Object.keys(look.garments || {}).length;
 
   return (
-    <div className="look-card fadeIn" style={{ background: C.surface, border: `1px solid ${C.border}`, overflow: 'hidden', position: 'relative', animationDelay: `${delay}ms`, boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+    <div className="look-card fadeIn" style={{ background: C.surface, border: `1px solid ${C.border}`, overflow: 'hidden', position: 'relative', animationDelay: `${delay}ms`, boxShadow: '0 2px 16px rgba(0,0,0,0.08)' }}>
       <div style={{ padding: '24px 32px 12px', background: C.nude + '44', position: 'relative' }}>
         <div style={{ width: 90, margin: '0 auto' }}>
           <Mannequin skinHex={skinHex} bodyId={look.mannequin?.bodyType || 'standard'} />
         </div>
-        <div className="card-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(23,19,16,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.3s', gap: 12, flexDirection: 'column' }}>
-          <button onClick={onOpen} style={{ padding: '9px 22px', background: C.white, color: C.text, fontSize: 10, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase', border: 'none' }}>
+        <div className="card-overlay" style={{ position: 'absolute', inset: 0, background: 'rgba(23,19,16,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, opacity: 0, transition: 'opacity 0.3s ease' }}>
+          <button onClick={onOpen} style={{ padding: '9px 22px', background: C.white, color: C.text, fontSize: 10, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase', borderRadius: 4 }}>
             Editar
           </button>
           <button
@@ -391,7 +401,7 @@ function LookCard({ look, onOpen, onDelete, delay }: any) {
               e.stopPropagation();
               if (confirm('Excluir este look?')) onDelete();
             }}
-            style={{ padding: '9px 22px', background: 'transparent', color: '#FFB4B4', fontSize: 10, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase', border: '1px solid rgba(255,180,180,0.5)' }}
+            style={{ padding: '9px 22px', background: 'transparent', color: '#FFB4B4', fontSize: 10, fontWeight: 400, letterSpacing: '0.15em', textTransform: 'uppercase', border: '1px solid rgba(255,180,180,0.4)', borderRadius: 4 }}
           >
             Excluir
           </button>
@@ -434,20 +444,20 @@ function EditorScreen({ lookName, onNameChange, mannequin, garments, onBack, onS
               onChange={(e) => onNameChange(e.target.value)}
               onBlur={() => setEditingName(false)}
               onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)}
-              style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 400, letterSpacing: '0.06em', color: C.text, background: 'transparent', border: 'none', borderBottom: `1px solid ${C.border}`, textAlign: 'center', padding: '2px 8px', minWidth: 180 }}
+              style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 400, letterSpacing: '0.06em', color: C.text, background: 'transparent', border: 'none', borderBottom: `1px solid ${C.border}`, width: 300, textAlign: 'center' }}
             />
           ) : (
-            <button onClick={() => setEditingName(true)} style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 400, letterSpacing: '0.06em', color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => setEditingName(true)} style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 400, letterSpacing: '0.06em', color: C.text, display: 'flex', gap: 8, alignItems: 'center' }}>
               {lookName}
               <span style={{ fontSize: 9, color: C.muted, letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: "'Jost',sans-serif", fontWeight: 300 }}>editar</span>
             </button>
           )}
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="ghost-btn pill-btn" onClick={onShare} style={{ padding: '8px 20px', border: `1px solid ${C.border}`, fontSize: 10, fontWeight: 400, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.muted, background: 'transparent', transition: 'all 0.25s' }}>
+          <button className="ghost-btn pill-btn" onClick={onShare} style={{ padding: '8px 20px', border: `1px solid ${C.border}`, fontSize: 10, fontWeight: 400, letterSpacing: '0.14em', textTransform: 'uppercase', color: C.text }}>
             Compartilhar
           </button>
-          <button className="pill-btn" onClick={onSave} style={{ padding: '8px 24px', background: C.text, color: C.white, fontSize: 10, fontWeight: 400, letterSpacing: '0.14em', textTransform: 'uppercase', border: `1px solid ${C.text}`, transition: 'all 0.25s' }}>
+          <button className="pill-btn" onClick={onSave} style={{ padding: '8px 24px', background: C.text, color: C.white, fontSize: 10, fontWeight: 400, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
             Salvar Look
           </button>
         </div>
@@ -519,7 +529,7 @@ function EditorScreen({ lookName, onNameChange, mannequin, garments, onBack, onS
                       +
                     </button>
                   ) : (
-                    <button className="remove-btn" onClick={() => onRemoveGarment(cat.id)} style={{ fontSize: 9, color: C.danger, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 400 }}>
+                    <button className="remove-btn" onClick={() => onRemoveGarment(cat.id)} style={{ fontSize: 9, color: C.danger, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>
                       Remover
                     </button>
                   )}
@@ -532,7 +542,7 @@ function EditorScreen({ lookName, onNameChange, mannequin, garments, onBack, onS
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 400, color: C.text, letterSpacing: '0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</div>
                       {g.shopUrl && (
-                        <a href={g.shopUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: C.gold, fontWeight: 400, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', marginTop: 3, display: 'block' }}>
+                        <a href={g.shopUrl} target="_blank" rel="noreferrer" style={{ fontSize: 9, color: C.gold, fontWeight: 400, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none' }}>
                           Ver na loja ↗
                         </a>
                       )}
@@ -546,7 +556,7 @@ function EditorScreen({ lookName, onNameChange, mannequin, garments, onBack, onS
             );
           })}
           <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 9, color: C.muted, fontWeight: 300, letterSpacing: '0.08em', lineHeight: 1.8, textTransform: 'uppercase' }}>Clique em uma peça no manequim para acessar o link da loja.</div>
+            <div style={{ fontSize: 9, color: C.muted, fontWeight: 300, letterSpacing: '0.08em', lineHeight: 1.8, textTransform: 'uppercase' }}>Clique em uma peça no manequim para acessar o link da loja</div>
           </div>
         </aside>
       </div>
@@ -689,7 +699,7 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
           <TextInput placeholder="https://loja.com/produto" value={shopUrl} onChange={setShopUrl} />
         </FieldGroup>
         <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-          <button onClick={onClose} style={{ flex: 1, padding: '12px', border: `1px solid ${C.border}`, fontSize: 10, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.muted }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', border: `1px solid ${C.border}`, fontSize: 10, fontWeight: 400, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.text }}>
             Cancelar
           </button>
           <button
@@ -716,7 +726,7 @@ function AddGarmentModal({ category, onAdd, onClose }: any) {
   );
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast ────────────────────────────────────────────────────────────────
 function Toast({ message, onDone }: any) {
   useEffect(() => {
     const t = setTimeout(onDone, 2400);
@@ -745,7 +755,7 @@ function Toast({ message, onDone }: any) {
   );
 }
 
-// ─── Shared Components ────────────────────────────────────────────────────────
+// ─── Shared Components ─────────────────────────────────────────────────────
 function Overlay({ children, onClose }: any) {
   return (
     <div
@@ -807,7 +817,7 @@ function TextInput({ placeholder, value, onChange }: any) {
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────────────────────────
+// ─── Main App ──────────────────────────────────────────────────────────────
 export default function Rhapso() {
   const [screen, setScreen] = useState<'home' | 'editor'>('home');
   const [looks, setLooks] = useState<LookData[]>([]);
@@ -964,7 +974,7 @@ export default function Rhapso() {
   };
 
   const shareViaClipboard = () => {
-    const text = `RHAPSO — ${lookName}\n\nTom: ${SKINS.find((s) => s.id === mannequin.skinTone)?.label}\nCorpo: ${BODIES.find((b) => b.id === mannequin.bodyType)?.label}\nPeças: ${Object.values(garments).map((g) => `${g.name}${g.shopUrl ? ' (' + g.shopUrl + ')' : ''}`).join(', ') || 'Nenhuma'}\n\nCriado com Rhapso`;
+    const text = `RHAPSO — ${lookName}\n\nTom: ${SKINS.find((s) => s.id === mannequin.skinTone)?.label}\nCorpo: ${BODIES.find((b) => b.id === mannequin.bodyType)?.label}\nPeças: ${Object.keys(garments).length}`;
     navigator.clipboard
       .writeText(text)
       .then(() => showToast('Copiado para a área de transferência'))
