@@ -7,6 +7,14 @@ export interface ProcessedGarment {
   category: string;
 }
 
+export interface GarmentDimensions {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  transform: string;
+}
+
 export const removeBackgroundFromImage = async (imageUrl: string): Promise<string> => {
   try {
     const blob = await removeBackground(imageUrl);
@@ -50,28 +58,28 @@ export const getGarmentTransform = (
 ) => {
   const transforms: Record<string, Record<string, any>> = {
     top: {
-      slim: { scale: 0.85, offsetY: -5 },
-      standard: { scale: 1, offsetY: 0 },
-      athletic: { scale: 1.05, offsetY: 0 },
-      curvy: { scale: 1.15, offsetY: 5 },
+      slim: { scale: 0.85, offsetY: -5, offsetX: 0 },
+      standard: { scale: 1, offsetY: 0, offsetX: 0 },
+      athletic: { scale: 1.05, offsetY: 0, offsetX: 0 },
+      curvy: { scale: 1.15, offsetY: 5, offsetX: 0 },
     },
     bottom: {
-      slim: { scale: 0.8, offsetY: 5 },
-      standard: { scale: 1, offsetY: 0 },
-      athletic: { scale: 1.08, offsetY: 0 },
-      curvy: { scale: 1.2, offsetY: -5 },
+      slim: { scale: 0.8, offsetY: 5, offsetX: 0 },
+      standard: { scale: 1, offsetY: 0, offsetX: 0 },
+      athletic: { scale: 1.08, offsetY: 0, offsetX: 0 },
+      curvy: { scale: 1.2, offsetY: -5, offsetX: 0 },
     },
     shoes: {
-      slim: { scale: 0.9, offsetY: 0 },
-      standard: { scale: 1, offsetY: 0 },
-      athletic: { scale: 1.05, offsetY: 0 },
-      curvy: { scale: 1.05, offsetY: 0 },
+      slim: { scale: 0.9, offsetY: 0, offsetX: 0 },
+      standard: { scale: 1, offsetY: 0, offsetX: 0 },
+      athletic: { scale: 1.05, offsetY: 0, offsetX: 0 },
+      curvy: { scale: 1.05, offsetY: 0, offsetX: 0 },
     },
     accessory: {
-      slim: { scale: 0.85, offsetY: 0 },
-      standard: { scale: 1, offsetY: 0 },
-      athletic: { scale: 1, offsetY: 0 },
-      curvy: { scale: 1.05, offsetY: 0 },
+      slim: { scale: 0.85, offsetY: 0, offsetX: 0 },
+      standard: { scale: 1, offsetY: 0, offsetX: 0 },
+      athletic: { scale: 1, offsetY: 0, offsetX: 0 },
+      curvy: { scale: 1.05, offsetY: 0, offsetX: 0 },
     },
   };
 
@@ -85,8 +93,9 @@ export const calculateGarmentDimensions = (
   containerWidth: number,
   containerHeight: number,
   scale: number = 1,
-  offsetY: number = 0
-) => {
+  offsetY: number = 0,
+  offsetX: number = 0
+): GarmentDimensions => {
   const aspect = originalWidth / originalHeight;
   let width = containerWidth * 0.9;
   let height = width / aspect;
@@ -99,10 +108,13 @@ export const calculateGarmentDimensions = (
   width *= scale;
   height *= scale;
 
-  const x = (containerWidth - width) / 2;
+  const x = (containerWidth - width) / 2 + offsetX;
   const y = (containerHeight - height) / 2 + offsetY;
 
-  return { x, y, width, height };
+  // Retorna também um transform CSS para melhor compatibilidade
+  const transformString = `translate(${x}px, ${y}px) scale(${scale})`;
+
+  return { x, y, width, height, transform: transformString };
 };
 
 export const downloadGarmentAsImage = async (
